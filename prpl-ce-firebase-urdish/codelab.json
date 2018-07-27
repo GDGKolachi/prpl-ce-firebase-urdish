@@ -1,0 +1,29 @@
+{
+  "environment": "web",
+  "source": "1IujFpSwxzzQNDYEag4Eyc8uonz_61FjFEgyC_N-uISE",
+  "format": "html",
+  "prefix": "../../",
+  "mainga": "UA-49880327-14",
+  "updated": "2018-07-27T15:13:53Z",
+  "id": "prpl-ce-firebase-urdish",
+  "duration": 0,
+  "title": "PRPL with Custom Elements and Firebase",
+  "author": "ahsanayaz, mehdi rajani, asnafarid",
+  "summary": "In this codelab, you'll build a web app using PRPL pattern. You will create custom elements for performance and will use Firebase for hosting and Http2 server push.",
+  "theme": "web",
+  "status": [
+    "draft"
+  ],
+  "category": [
+    "Web"
+  ],
+  "tags": [
+    "io2018",
+    "prpl",
+    "pwa",
+    "tag-web",
+    "web"
+  ],
+  "feedback": "https://github.com/googlecodelabs/prpl-ce-firebase-urdish/issues",
+  "url": "prpl-ce-firebase-urdish"
+}

@@ -1,0 +1,436 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>PRPL with Custom Elements and Firebase</title>
+  <script src="../../bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="../../elements/codelab.html">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <style is="custom-style">
+    body {
+      font-family: "Roboto",sans-serif;
+      background: var(--google-codelab-background, #F8F9FA);
+    }
+  </style>
+  
+</head>
+<body unresolved class="fullbleed">
+
+  <google-codelab title="PRPL with Custom Elements and Firebase"
+                  environment="web"
+                  feedback-link="https://github.com/googlecodelabs/prpl-ce-firebase-urdish/issues">
+    
+      <google-codelab-step label="Taaruf" duration="0">
+        <h2><strong>PRPL Pattern</strong></h2>
+<p><em>PRPL</em> ek tareeka hai <em>Progressive Web Apps</em> bananay aur unko <em>end-user</em> k liye <em>serve</em> karnay ka. Is tareekay may bohat zyada zor application ki karkardagi (<em>performance</em>) aur application k shuru honay may jitna waqt lagta hai uspay hai.<br><em>PRPL</em> ka matlab hai:</p>
+<ul>
+<li><strong>Push - </strong>application kay liye jo zaruri cheezen (<em>images, files</em>) hain wo pehle hi <em>server</em> say browser ki taraf <em>push</em> hojaen. </li>
+<li><strong>Render - </strong>Pehle page ko jitna jald hosake <em>load</em> karlena aur <em>user</em> ko dikhana</li>
+<li><strong>Pre-cache -  </strong>pehle page kay ilawa baqi pages ko pehle se hi <em>cache</em> karlena</li>
+<li><strong>Lazy-load -  </strong>jis section ki jab zarurat ho, uske <em>assets</em> sirf tab <em>load </em>karna jab us <em>section</em> ya <em>page</em> par jaya jae.</li>
+</ul>
+<h2><strong>Hum kya bana rahy hain?</strong></h2>
+<p>Ek aisi application jo PRPL k tareekon par banayi jaegi. Aik saadi si fehrist (<em>list</em>) aur har <em>list-item </em>ki tafseel ka page.  Page kay liye hum <a href="https://developer.mozilla.org/en-US/docs/Web/Web_Components/Custom_Elements" target="_blank">Custom Elements</a> istemaal karainge jinko hum <em>lazy-load </em>karenge jab zarurat ho. Aur hum <a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API" target="_blank">Service Workers</a> istemaal karenge apne code aur files ko <em>cache</em> karnay kay liye. Phir hum is application ko <em>Firebase Hosting</em> pe <em>deploy </em>kardenge ta kay hum Firebase ka HTTP/2 Sever Push istemal kar sakain. </p>
+<h2>Aap is codelab main kya seekhen ge</h2>
+<ul>
+<li>Ek web application ko kaisay tarteeb diya jaye kay wo PRPL kay pattern ko sahi se naafiz karay</li>
+<li>Custom Elements kis tarah bantay hain</li>
+<li><a href="https://developers.google.com/web/tools/workbox/" target="_blank">Workbox CLI</a> ko istemal karna ek asaan Service Worker bananay kay liye.</li>
+<li>Web application ko <em>Firebase Hosting</em> pe <em>HTTP/2 Server Push</em> k sath <em>deploy</em> karna</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Setup karna" duration="0">
+        <h2><strong>Code download karain</strong></h2>
+<p>Repository ko GitHub se clone karen:</p>
+<pre>git clone https://github.com/PolymerLabs/prpl-ce-firebase.git</pre>
+<p>Mutabaadal tor pe, nichay diye huay button ko click karke repository latest version ek zip ke tor pe download karen.</p>
+<p><a href="https://github.com/PolymerLabs/prpl-ce-firebase/archive/master.zip" target="_blank"><paper-button class="colored" raised>Source code download karen</paper-button></a></p>
+<p>(cd) command ko istemaal kartey huey apni directory  prpl-ce-firebase (or prpl-ce-firebase-master) jo download ki hai usmen ajayen. Final directory men is codelab ki mutawaqqa soorat mojud hai aur hawalay ke tor pe aap ko faraham ki gayi hai.</p>
+<h2><strong>Tools install karen</strong></h2>
+<ol type="1" start="1">
+<li><a href="https://nodejs.org/en/download/" target="_blank">Node.js </a>install karen</li>
+<li><a href="https://firebase.google.com/docs/cli/" target="_blank">Firebase CLI</a> aur <a href="https://developers.google.com/web/tools/workbox/" target="_blank">Workbox CLI </a>install karen</li>
+</ol>
+<pre>npm install -g firebase-tools workbox-cli</pre>
+<h2><strong>Firebase CLI Ko Tarteeb Den</strong></h2>
+<p>Firebase CLI ko istemaal karne ke liye, aapko ek Firebase account ki zarurat padegi. Apne Google account se Login karen aur <a href="https://console.firebase.google.com/" target="_blank">Firebase console</a> men ek naya mansuba (project) banayen, ab Firebase CLI se issi account men Login karen.</p>
+<pre>firebase login</pre>
+<p>Firebase CLI ko aap apna naya project istemaal karne ke liye tarteeb den, uske liye neechay di gayi command ka istemaal karen. Firebase aapko fori tor par ek project muntakhib karne ke liye aur ek <em>alias</em> shaamil karne ko kahega (jo ke koi bhi value hosakti hai, jese staging).</p>
+<pre>firebase use --add</pre>
+<h2><strong>Apni Web App Ke Liye Firebase CLI ka Istemaal Karen</strong></h2>
+<p>Aagay di gayi command ko chala kar apni web app pe web server ka aaghaz karen. Phir, ek naya <em>browser window</em> kholen aur <em>console</em> main makhsoos kia hua <em>URL</em> load karen (Jese, <a href="http://localhost:5000/" target="_blank">http://localhost:5000/</a>):</p>
+<pre>firebase serve</pre>
+<p><img style="max-width: 624.00px" src="img/477a9982eba374d6.png"></p>
+<aside class="warning"><p>Agar aapko yeh message nazar nahi aarha &#34;Custom Elements work on this browser&#34; ya phir apky browser kay console tool ny yeh error diya &#34;Can&#39;t find variable: customElements&#34;,  iska matlab apka browser native custom element ki support nahi rakhta. Kuch polifills hain jin ko include kr kay ap support add kar saktay hein, magar yeh is codelab k scope sy bahir ka topic hai. </p>
+<p>Un browsers ka istemal karein jo Custom Elements ki support rakhta ho:</p>
+<ul>
+<li>Chrome</li>
+<li>Safari 10.1 (macOS 10.12.4)</li>
+</ul>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Application ko Custom Elements kay sath tarteeb dena" duration="0">
+        <h2><strong>Top-level &lt;my-app&gt; element ko tarteeb dena</strong></h2>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/Web_Components/Custom_Elements" target="_blank">Custom elements</a> k zariye hum apne banaye hue HTML tags kay bartao kay bary main bataty hain. <em>Index.html</em> main aap teen (3) custom elements dekh saktay hain:</p>
+<h3><strong>public/index.html</strong></h3>
+<pre>&lt;my-app&gt;
+  &lt;list-view&gt;&lt;/list-view&gt;
+  &lt;detail-view&gt;&lt;/detail-view&gt;
+&lt;/my-app&gt;</pre>
+<p>&lt;my-app&gt; <em>top-level</em> element hai, aur yeh hum istemaal karaingay &lt;list-view&gt; aur &lt;detail-view&gt; ko <em>control</em> karny k liye. Jo bhi element nazar araha hoga wo moujuda URL ki bunyad  par hoga. Aisa karnay kay liye hum aik <em>function</em> call karengy updateVisiblePage() wo &lt;body&gt; ki ek <em>classList</em> ko <em>update</em> karega moujuda URL ki bunyad par, aur hum is <em>function </em>connectedCallback() ko call karengy jab bhi koi <em>element</em> DOM main jaega. Kyunkay  &lt;detail-view&gt; kay andar ki cheezen bhi URL par munhassir karti hain, isliye hum `path` ko muqarrar kardainge ta kay &lt;detail-view&gt; you ye pata chal jaye kay usay kis cheez ko <em>render </em>karna hai.</p>
+<h3><strong>public/elements/my-app.js</strong></h3>
+<pre>class MyAppElement extends HTMLElement {
+  connectedCallback() {
+    this.updateVisiblePage();
+  }
+  updateVisiblePage() {
+    if (window.location.pathname.match(&#39;^/detail&#39;)) {
+      document.body.classList.add(&#39;detail-view-active&#39;);
+      this.querySelector(&#39;detail-view&#39;).setAttribute(&#39;path&#39;, window.location.pathname);
+    } else {
+      document.body.classList.remove(&#39;detail-view-active&#39;);
+    }
+  }
+}</pre>
+<aside class="special"><p>Ap notice karainge kay humnay updateVisiblePage() function ko call kya hai. Na kay connectedCallback() ko. Iski waja ye hai k Custom Elements V1 ki <em>specifications</em> is baat ki ijazat nahin deti kay ek custom element kay <em>attributes, children </em>ya <em>parent</em> ki <em>information</em> ko kisi custom element k <em>constructor </em>may <em>read/write </em>kiya ja sakay aur updateVisiblePage()  darasal child ki <em>state</em> ko tabdeel kardeta hai jo k <em>specs </em>kay mutaabiq mana hai.</p>
+</aside>
+<p>Style.css   mai, ap yeh dekh saktay hain kay jab detail-view-active class &lt;body&gt; par lagi hoti hai, tab hum &lt;detail-view&gt; ko viewport per render kartay hain aur scrolling ko disable kar dete hain <em>main page</em> par. </p>
+<h3><strong>public/style.css</strong></h3>
+<pre>body.detail-view-active {
+  overflow: hidden;
+}
+body.detail-view-active detail-view {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}</pre>
+<p>Humain update karnay ki zarurat hy us page ko jo humain view par nazar araha hai jab jab URL change ho. Aisa karne kay liye, hum ek click <em>event listener </em>ka izaafa kartay hain <em>links</em> kay liye aur ek popstate <em>event listener </em>ka izaafa browser k ek page se dusre page pe janay k par.</p>
+<h3><strong>public/elements/my-app.js</strong></h3>
+<pre>class MyAppElement extends HTMLElement {
+  connectedCallback() {
+    this.addEventListener(&#39;click&#39;, this.clickHandler);
+    window.addEventListener(&#39;popstate&#39;, this.updateVisiblePage.bind(this));
+
+    this.updateVisiblePage();
+  }
+
+  updateVisiblePage() {
+    /* ... */
+  }
+
+  clickHandler(event) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    let element = event.target;
+    while (element !== this) {
+      if (element.tagName === &#39;A&#39;) {
+        event.preventDefault();
+        window.history.pushState(null, &#39;&#39;, element.href);
+        this.updateVisiblePage();
+        return;
+      }
+      element = element.parentNode;
+    }
+  }
+}</pre>
+<p>Ek aur kaam jo hum karainge wo yeh kay hum my-app ko istemaal karainge taa kay list-view  aur  detail-view <em>lazy load </em>hosaken jab jab humain inki zarurat ho.</p>
+<h3><strong>public/elements/my-app.js</strong></h3>
+<pre>class MyAppElement extends HTMLElement {
+  connectedCallback() {
+    /* ... */
+  }
+ updateVisiblePage() {
+    if (window.location.pathname.match(&#39;^/detail&#39;)) {
+      this.loadElement(&#39;detail-view&#39;);
+      document.body.classList.add(&#39;detail-view-active&#39;);
+      this.querySelector(&#39;detail-view&#39;).setAttribute(&#39;path&#39;, window.location.pathname);
+    } else {
+      this.loadElement(&#39;list-view&#39;);
+      document.body.classList.remove(&#39;detail-view-active&#39;);
+    }
+  }
+ clickHandler(event) {
+    /* ... */
+  }
+constructor() {
+    super();
+    this.loadedElements = {};
+  }
+loadElement(element) {
+    if (this.loadedElements[element]) {
+      return;
+    }
+
+    const script = document.createElement(&#39;script&#39;);
+    script.src = `/elements/${element}.js`;
+    document.head.appendChild(script);
+    this.loadedElements[element] = script;
+  }
+}</pre>
+<aside class="warning"><p>Agar ap ko constructor() define karna hai ek custom element kay liye, to apko super() laazmi call krna hoga  constructor() k andar, isse pehle k aap this ko use karsakain. Esa isliye taa k browser sahi se prototype-chain bana sakay is constructor kay context kay liye.</p>
+</aside>
+<h2><strong>&lt;list-view&gt; element define karna</strong></h2>
+<p> &lt;list-view&gt; element ka kaam hy /data/list.json kay contents ko mangwana aur usko render karna. Ghor karain kay  &lt;list-view&gt; us hi waqt render hoga jab uski <em>definition </em>pehle se ho chuki ho. Kyunke hum iski definition ko lazy load kar rahay hain, isi liye is kay nateejay main hum is ka <em>data</em> bhi tab mangwa rahay hain jab zarurat ho. Na k application kay load honay par.</p>
+<h3><strong>public/elements/list-view.js</strong></h3>
+<pre>class ListViewElement extends HTMLElement {
+  connectedCallback() {
+    var xhr = new XMLHttpRequest();
+    xhr.open(&#39;GET&#39;, &#39;/data/list.json&#39;);
+    xhr.addEventListener(&#39;load&#39;, () =&gt; this.renderItems(JSON.parse(xhr.responseText)));
+    xhr.addEventListener(&#39;error&#39;, () =&gt; this.showNetworkError());
+    xhr.send();
+  }
+renderItems(items) {
+    this.innerHTML = items.reduce((a, item) =&gt; a + `
+      &lt;a href=&#34;/detail/${item.id}&#34;&gt;
+        &lt;img src=&#34;${item.imageUrl}&#34;&gt;
+        &lt;div&gt;${item.name}&lt;/div&gt;
+      &lt;/a&gt;`, &#39;&#39;);
+  }
+
+  showNetworkError() {
+    this.innerHTML = `
+      &lt;p class=&#34;error&#34;&gt;No network connection&lt;/p&gt;`;
+  }
+}
+
+customElements.define(&#39;list-view&#39;, ListViewElement);</pre>
+<aside class="special"><p>Jis waqt ye codelab likha jaraha hai, is waqt fetch kay andar aik masla maujood hai. Wo ye k fetch filwaqt rokta hy pushed resources ko mangwanay say (https://bugs.chromium.org/p/chromium/issues/detail?id=652228). Is liye hum XMLHttpRequest istemaal karainge kyun kay is main yeh masla maujood nahin hai.</p>
+</aside>
+<h2><strong>&lt;detail-view&gt; element define karna</strong></h2>
+<p>&lt;detail-view&gt; element mangwata hy  /data/detail/&lt;#&gt;.json k <em>contents</em> ko aur unko render karta hy. Ghor karain kay yeh <em>element</em> darasal <em>observe</em> karega <em>path</em> (attribute) k change ko (dekhen observedAttributes() k function ko). Aur jab jab yeh  <em>attribute</em> change hooga, element dobara se render hoga (dekhen attributeChangedCallback() k function ko). Jaise &lt;list-view&gt; <em>lazy load</em> ho kar <em>render</em> hota hai, wese hi &lt;detail-view&gt; bhi <em>lazy load</em> aur <em>render</em> hoga.</p>
+<h3><strong>public/elements/detail-view.js</strong></h3>
+<pre>class DetailViewElement extends HTMLElement {
+  static get observedAttributes() {
+    return [&#39;path&#39;];
+  }
+attributeChangedCallback(attr, oldValue, newValue) {
+    if (attr !== &#39;path&#39; || !newValue) {
+      return;
+    }
+ this.innerHTML = &#39;&#39;;
+    var xhr = new XMLHttpRequest();
+    xhr.open(&#39;GET&#39;, `/data${newValue}.json`);
+    xhr.addEventListener(&#39;load&#39;, () =&gt; this.renderItems(JSON.parse(xhr.responseText)));
+    xhr.addEventListener(&#39;error&#39;, () =&gt; this.showNetworkError());
+    xhr.send();
+  }
+
+  renderItems(item) {
+    this.innerHTML = `
+      &lt;img src=&#34;${item.imageUrl}&#34;&gt;
+      &lt;a href=&#34;/&#34; class=&#34;close-btn&#34;&gt;&amp;times;&lt;/a&gt;
+      &lt;div&gt;
+        &lt;h1&gt;${item.name}&lt;/h1&gt;
+        &lt;p&gt;${item.description}&lt;/p&gt;
+      &lt;/div&gt;`;
+  }
+showNetworkError() {
+    this.innerHTML = `
+      &lt;a href=&#34;/&#34; class=&#34;close-btn&#34;&gt;&amp;times;&lt;/a&gt;
+      &lt;p class=&#34;error&#34;&gt;No network connection&lt;/p&gt;`;
+  }
+}
+customElements.define(&#39;detail-view&#39;, DetailViewElement);</pre>
+<p>Yahan tak hum nay is web application ko <em>functional</em> tor par mukammal karliya. Aglay marhalay main hum baqi ka PRPL pattern ko implement karainge.</p>
+<p><img style="max-width: 682.50px" src="img/9877d61dcea71d8e.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Service Worker ka istemal karna resources ko Cache karnay kay liye" duration="0">
+        <h2><strong>Service Worker bana na Pre-caching kay sath</strong></h2>
+<p>Hum <a href="https://developers.google.com/web/tools/workbox/" target="_blank">Workbox CLI</a> ko istemal karainge <em>service worker </em>bananay main. Service worker ko tashkeel dainay kay liye agay di gayi command run karain:</p>
+<pre>workbox wizard</pre>
+<p>Iske baad apko hidayat di jaegi ek series k zariye jo k <em>step by step</em> hogi mukhtalif options kay sath. Ap apni marzi ka option muntakhib karsaktay hain. Humari web application ka <em>root </em>hai <em>public/ </em>ka folder:</p>
+<p><img style="max-width: 624.00px" src="img/d800c27b9cca4698.png"></p>
+<p>Aglay marhalay main ap se pucha jaega kay ap ko kin kin files ko precache karna hy. Hum un <em>static</em> files ko precache karenge jo zyada tabdeel nahin hotin. Jaise kay js, ico, html and css files. Lekin hum <em>json</em> files ko precache nahin karenge kyun kay wo <em>runtime cache</em> main jaengi (hum ye aglay marhalay main dekhenge):</p>
+<p><img style="max-width: 624.00px" src="img/ee9c35d54bf7e05.png"></p>
+<p>Ab hum bataenge k humara service worker kis location pe banega. Location k liye hum default location yani public/sw.js ka intekhaab karainge:</p>
+<p><img style="max-width: 624.00px" src="img/289fac2a88644222.png"></p>
+<p>Akhir main, hum in sare intekhaabat ko <em>default </em>main workbox-config.js mehfooz karlenge:</p>
+<p><img style="max-width: 624.00px" src="img/a4f2301c1966556e.png"></p>
+<p>Service worker ko apni mehfooz karda file ko istemaal karte hue bananay kay liye agay di gayi command ko chalayen:</p>
+<pre>workbox generateSW workbox-config.js</pre>
+<p>Is say public/sw.js ki file tashkeel de di jaegi. Is kay baad humain is service worker kaindex.html main <em>register</em> karna hoga. Intezar karain jabtak page pura load na hojae taa kay jo <em>network requests </em>hain service worker ki jaanib se wo <em>page</em> kay <em>load</em> honay par asar andaaz na hon.</p>
+<pre>&lt;body&gt;
+  &lt;my-app&gt;
+    &lt;list-view&gt;&lt;/list-view&gt;
+    &lt;detail-view&gt;&lt;/detail-view&gt;
+  &lt;/my-app&gt;
+
+  &lt;script&gt;
+    if (&#39;serviceWorker&#39; in window.navigator) {
+      window.addEventListener(&#39;load&#39;, function() {
+        window.navigator.serviceWorker.register(&#39;/sw.js&#39;)
+      });
+    }
+  &lt;/script&gt;
+&lt;/body&gt;</pre>
+<p>Ye saada sa service worker humaray static asaason ko <em>precache </em>karlega, lekin humain aur configuration options batanay honge service worker ko taa kay humari web application mukammal tor par offline chalnay k qabil hojae.</p>
+<h2><strong>Mazeed CLI Config Options tarteeb dena</strong></h2>
+<p>Hum agay diye hue options ka Workbox CLI main options kay tor par izaafa karainge ta k Workbox CLI ek aisa service worker banaye jo k navigation ki requests aur runtime caching ko samhalay: </p>
+<h3><strong>workbox-config.js</strong></h3>
+<pre>module.exports = {
+  &#34;globDirectory&#34;: &#34;public/&#34;,
+  &#34;globPatterns&#34;: [
+    &#34;**/*.{js,ico,html,css}&#34;
+  ],
+  &#34;swDest&#34;: &#34;public/sw.js&#34;,
+
+  /**
+   * Added config options below. Don&#39;t forget the trailing comma (,) above.
+   */
+
+  /**
+   * Activate this service worker on all active clients without reloading the page.
+   */
+  &#34;skipWaiting&#34;: true,
+  &#34;clientsClaim&#34;: true,
+
+  /**
+   * All navigate requests should serve the contents of &#34;index.html&#34;.
+   */
+  &#34;navigateFallback&#34;: &#34;index.html&#34;,
+
+  /**
+   * Runtime caching options.
+   */
+  &#34;runtimeCaching&#34;: [
+    /**
+     * Use the &#34;network-first&#34; strategy for data. This means users will always get
+     * up-to-date data if they have a reliable network connection, but falls back to
+     * cached content otherwise.
+     */
+    {
+      &#34;urlPattern&#34;: /\/data\/.*/,
+      &#34;handler&#34;: &#34;networkFirst&#34;
+    },
+
+    /**
+     * Use the &#34;cache-first&#34; strategy for images. This means that once an image is
+     * cached, it will not be updated and waste the user&#39;s data. To update the image,
+     * you would need to revision the image (e.g. by changing the filename).
+     *
+     * Cross-origin requests will always return a status of 0 - this needs to be
+     * explicitly specified as cacheable when creating the handler.
+     */
+    {
+      &#34;urlPattern&#34;: /^https:\/\/prpl-ce-firebase\.firebaseapp\.com\/images\//,
+      &#34;handler&#34;: &#34;cacheFirst&#34;,
+      &#34;options&#34;: {
+        &#34;cacheableResponse&#34;: {
+          &#34;statuses&#34;: [0, 200]
+        }
+      },
+    }
+  ]
+};</pre>
+<p>Jab ye hojae, tab hum dobara se banayenge service worker pehle wali command istemal karte hue:</p>
+<pre>workbox generateSW workbox-config.js</pre>
+<aside class="warning"><p>Agar aap ek aisay asset ko ya file ko tabdeel karainge jo precache hua wo ho, to apko dobara se service worker banana hoga upar di gayi command se. Warna service worker apni cache ko update nahin karege jiskay nateejay main service worker purani files ko hi serve karta rahega. Production applications kay liye hum ye taweez karte hain apko kay koi aisa build-process banaye production k liye jo service worker ko khud say dobara banaye.</p>
+</aside>
+<p>Service worker k saath, web application kuch is tarah nazar ayegi pehli dafa load honay par. Ghor karain kay jab service worker maujood hota hy, wo precache karna shuru kardeta hain asaason (assets) ko.</p>
+<p><img style="max-width: 624.00px" src="img/ecf8b675aabf7ebc.png"></p>
+<p>Agli dafa page k load honay par ap dekhenge k saray <em>static resources</em> service worker se load huay hain bajaye network se load honay kay. Ghor karain kay kyunke ye pehli dafa hai k images load hui hain service worker istemaal karte hue, service worker nay in ko abhi tak cache nahin kiya hy. Isliye filwaqt service worker wo network call ki zarurat par rahi hain images load karne kay liye.</p>
+<p><img style="max-width: 624.00px" src="img/651008018c3f3c31.png"></p>
+<p>Agar ab aap page ko reload karain, ap daikhenge k images ab <em>cache</em> ho chuki hain aur service worker ab unko network call kay zariye say nahin mangwata.</p>
+<p><img style="max-width: 624.00px" src="img/7db3ad4f4368f7b2.png"></p>
+<aside class="special"><p>Hum ye tajweez daitay hain i service worker ko test karnay kay liye chrome ki incognito window ko istemaal kiya jaye. Iska faida ye hota hai k cache bilkul khaali/saaf hojati hai aur ek nayi cache haasil karne kay liye apko sirf incognito windows band karke dobara kholni hongi.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="HTTP/2 Server Push ko tarteeb daina" duration="0">
+        <p>HTTP/2 server push ye sahoolat deta hai webserver ko k wo browser pe resources bhej de isse bhi pehle kay browser un resources ki request karay server se. Humari inline resources k baraks (jese k CSS aur JS), server push sahoolat deta hai browser ko k wo pehle se pushed resources ko cache kar lay alag se aur mumkina tor par unhe baad may istemal bhi karle.</p>
+<p>Zyada tar servers jo kay server push ki sahoolat daite hain, wo Link: rel=preload HTTP header ka istemal karte hain andaza laganay kay liye kay kon konsay resources ko bhejna hai browser tak. Server push k bagher, <em>response header </em>browser say ye kehta hai k browser ko download karna paryga resource isse pehle k page <em>process</em> hosakay. Isse ye faida hota hai k browser ko ye maloom karnay ka mauqa mil jata hy kay kya yeh resource pehle se cache main to nahin. Isliye, agar koi resource pehle se cache horahi hy, to apko shayad ye sochna chahiye k usay push na kiya jae server se jisse data bach jaega <em>end-user</em> ka (jo k ap Link: rel=preload; nopush) specify karke bata sakte hain browser ko).</p>
+<p>Ese bohat se <em>servers </em>maujood hain jo kay HTTP/2 server push ki sahoolat daite hain. Is codelab kay liye hum istemaal karainge Firebase ko. Hum ye dikhaenge kay kis tarhan ki configuration karni parti hy server push ko implement karnay kay liye(Firebase ki HTTP/2 support k baray may mazeed maloomat un kay <a href="https://firebase.googleblog.com/2016/09/http2-comes-to-firebase-hosting.html" target="_blank">blog post</a> se milsakti hai). </p>
+<p>Firebase ki <em>hosting config object </em>k andar agay diye gaye <em>headers array </em>ko milayen ta kay un resources ko specify kiya jae sakay jinko alag alag route pe push karna hy:</p>
+<h3><strong>firebase.json</strong></h3>
+<pre>{
+  &#34;hosting&#34;: {
+    &#34;public&#34;: &#34;public&#34;,
+    &#34;rewrites&#34;: [
+      {
+        &#34;source&#34;: &#34;/detail/*&#34;,
+        &#34;destination&#34;: &#34;/index.html&#34;
+      }
+    ],
+    &#34;headers&#34;: [
+      {
+        &#34;source&#34;: &#34;/&#34;,
+        &#34;headers&#34;: [{
+          &#34;key&#34;: &#34;Link&#34;,
+          &#34;value&#34;: &#34;&lt;/elements/my-app.js&gt;;rel=preload;as=script,&lt;/style.css&gt;;rel=preload;as=style,&lt;/elements/list-view.js&gt;;rel=preload;as=script,&lt;/data/list.json&gt;;rel=preload&#34;
+        }]
+      },
+      {
+        &#34;source&#34;: &#34;/detail/*&#34;,
+        &#34;headers&#34;: [{
+          &#34;key&#34;: &#34;Link&#34;,
+          &#34;value&#34;: &#34;&lt;/elements/my-app.js&gt;;rel=preload;as=script,&lt;/style.css&gt;;rel=preload;as=style,&lt;/elements/detail-view.js&gt;;rel=preload;as=script&#34;
+        }]
+      }
+    ]
+  }
+}</pre>
+<p>Apnay web server ko dobara se start karain ta k tabdeel shuda config file load hojae:</p>
+<pre>firebase serve</pre>
+<p>Agar aap ghor se <em>network timeline </em>ka jaiza len jis dauran homepage <em>load</em> horaha ho, aap dekhengay k list-view.js aur list.json ki request jati hy jese hi page load hojata hy aur uska Link: rel=preload header process hojata hy.</p>
+<p><img style="max-width: 624.00px" src="img/e84503d81f8469f3.png"></p>
+<aside class="special"><p>Agar apko aisa nahin dikhara to hosakta hai kuch resources cache se load horahi hon. Is soorat main sari incognito windows ko band karden aur ek nayi incognito window khol kar usay inspect karain.</p>
+</aside>
+<p>Ye yaad rakhain kay local dev-server server push ko support nahin karta. Agar apko ye sab chalta hua dekhna hy server push kay sath to is project ko Firebase pe <em>deploy</em> karain aur phir Firebase servers se page load karain. Agay di hui command ko istemaal kartay hue project ko Firebase hosting pe <em>push</em> karden:</p>
+<pre>firebase deploy</pre>
+<p>Agar ab aap di gayi URL se page kholenge to apko humari di hui <a href="https://prpl-ce-firebase.firebaseapp.com/" target="_blank">demo site</a> jaisa hi timeline nazar ayega. Ghor karain kis tarhan network tab zahir karta hai k my-app.js, style.css, list-view.js aur list.json ki requests bazahir <em>push </em>ki waja se shuru huin aur kis tarah <em>waterfall </em>ye dikha raha hai k koi bhi waqt nahin laga un requests pe.</p>
+<p><img style="max-width: 624.00px" src="img/a62712fcf8f707b.png"></p>
+<aside class="special"><p>Agar apko aisa nahin dikhara to hosakta hai kuch resources cache se load horahi hon. Is soorat main sari incognito windows ko band karden aur ek nayi incognito window khol kar usay inspect karain.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-49880327-14', 'auto');
+
+    (function() {
+      var gaCodelab = '';
+      if (gaCodelab) {
+        ga('create', gaCodelab, 'auto', {name: 'codelab'});
+      }
+
+      var gaView;
+      var parts = location.search.substring(1).split('&');
+      for (var i = 0; i < parts.length; i++) {
+        var param = parts[i].split('=');
+        if (param[0] === 'viewga') {
+          gaView = param[1];
+          break;
+        }
+      }
+      if (gaView && gaView !== gaCodelab) {
+        ga('create', gaView, 'auto', {name: 'view'});
+      }
+    })();
+  </script>
+
+</body>
+</html>
